@@ -66,10 +66,14 @@ def main():
     if domain != "localhost":
         # Production with SSL
         port = int(os.getenv("PORT", "6000"))
-        nanda.start_server_api(os.getenv("ANTHROPIC_API_KEY"), domain, port=port)
+        api_port = int(os.getenv("API_PORT", "6001"))
+        public_url = os.getenv("PUBLIC_URL")
+        api_url = os.getenv("API_URL")
+        ssl = os.getenv("SSL") == "true"
+        nanda.start_server_api(os.getenv("ANTHROPIC_API_KEY"), domain, port=port, api_port=api_port, api_url=api_url, ssl=ssl, public_url=public_url)
     else:
         # Development server
-        nanda.start_server()
+        nanda.start_server(port=port)
 
 if __name__ == "__main__":
     main()

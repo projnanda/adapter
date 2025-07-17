@@ -2,14 +2,19 @@ services:
   nanda-pirate:
     image: h4x3rotab/nanda-demo:latest
     ports:
-      - "6001:6001"
+      - "5000:5000"
+      - "6000:6000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your-api-key-here}
-      - DOMAIN_NAME=${DSTACK_APP_ID}-6001.${DSTACK_GATEWAY_DOMAIN}
-      - PORT=6001
+      - DOMAIN_NAME=${DSTACK_APP_ID}-5000.${DSTACK_GATEWAY_DOMAIN}
+      - API_URL=https://${DSTACK_APP_ID}-5000.${DSTACK_GATEWAY_DOMAIN}
+      - PUBLIC_URL=https://${DSTACK_APP_ID}-6000.${DSTACK_GATEWAY_DOMAIN}
+      - PORT=6000
+      - API_PORT=5000
       - TERMINAL_PORT=6010
       - IMPROVE_MESSAGES=true
       - UI_MODE=true
+      - SSL=false
     restart: unless-stopped
     container_name: nanda-pirate-agent
     volumes:
