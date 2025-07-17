@@ -1,0 +1,19 @@
+services:
+  nanda-pirate:
+    image: h4x3rotab/nanda-demo:latest
+    ports:
+      - "6001:6001"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your-api-key-here}
+      - DOMAIN_NAME=localhost
+      - PORT=6001
+      - TERMINAL_PORT=6010
+      - IMPROVE_MESSAGES=true
+      - UI_MODE=true
+    restart: unless-stopped
+    container_name: nanda-pirate-agent
+    volumes:
+      - nanda-logs:/app/conversation_logs
+
+volumes:
+  nanda-logs:
