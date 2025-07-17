@@ -5,7 +5,7 @@ services:
       - "6001:6001"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your-api-key-here}
-      - DOMAIN_NAME=localhost
+      - DOMAIN_NAME=${DSTACK_APP_ID}-6001.${DSTACK_GATEWAY_DOMAIN}
       - PORT=6001
       - TERMINAL_PORT=6010
       - IMPROVE_MESSAGES=true
