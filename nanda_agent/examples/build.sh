@@ -1,3 +1,7 @@
 #!/bin/bash
-docker build --platform linux/amd64 -t h4x3rotab/nanda-demo:latest .
-docker push h4x3rotab/nanda-demo:latest
+
+# Usage: ./build.sh yourname/repo:tag
+# e.g. ./build.sh h4x3rotab/nanda-demo:latest
+
+docker build --platform linux/amd64 -t "${1}" .
+docker push "${1}"
