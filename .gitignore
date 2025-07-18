@@ -6,6 +6,32 @@ conversation_logs/
 agents/test.py
 nanda_agent/__pycache__
 
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
 # Build artifacts
 dist/
 *.egg-info/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+out.log

@@ -236,6 +236,9 @@ The framework will automatically:
 - Set up proper agent registration
 - Configure production-ready logging
 
+## Deploy Autonomous Agents in TEE
+
+[Phala Cloud](https://cloud.phala.network) allows you to build fully autonomous and privacy preserving AI Agents with verifiable cryptogrphic proofs using TEE (Trusted Execution Environment). Learn more at [Phala Cloud Deployment README](./README-Phala-Cloud.md).
 
 ## Appendix: Configuration Details
 
