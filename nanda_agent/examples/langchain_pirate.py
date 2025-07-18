@@ -65,8 +65,8 @@ def main():
 
     if domain != "localhost":
         # Production with SSL
+        api_port = int(os.getenv("API_PORT", "5000"))
         port = int(os.getenv("PORT", "6000"))
-        api_port = int(os.getenv("API_PORT", "6001"))
         public_url = os.getenv("PUBLIC_URL")
         api_url = os.getenv("API_URL")
         ssl = os.getenv("SSL") == "true"
