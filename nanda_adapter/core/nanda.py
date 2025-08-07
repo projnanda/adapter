@@ -152,16 +152,8 @@ class NANDA:
             print(f"⚠️ Could not determine IP automatically, using default: {server_ip}")
             return server_ip
         
-        # Set up signal handlers for cleanup
-        def cleanup(signum=None, frame=None):
-            """Clean up processes on exit"""
-            print("Cleaning up processes...")
-            if hasattr(run_ui_agent_https, 'bridge_process') and run_ui_agent_https.bridge_process:
-                run_ui_agent_https.bridge_process.terminate()
-            sys.exit(0)
-        
-        signal.signal(signal.SIGINT, cleanup)
-        signal.signal(signal.SIGTERM, cleanup)
+        # Note: Signal handlers cannot be set in threads, they must be set in main thread
+        # Cleanup will be handled by the calling code if needed
         
         # Get server IP
         server_ip = get_server_ip()
@@ -299,4 +291,4 @@ class NANDA:
                 time.sleep(1)
         except KeyboardInterrupt:
             print("\n🛑 Server stopped by user")
-            cleanup()
+            sys.exit(0)
