@@ -10,7 +10,7 @@ def create_sarcastic_improvement():
     # Initialize the LLM
     llm = ChatAnthropic(
         api_key=os.getenv("ANTHROPIC_API_KEY"),
-        model="claude-3-haiku-20240307"
+        model="claude-3-5-haiku-20241022"
     )
     
     # Create a sarcastic agent

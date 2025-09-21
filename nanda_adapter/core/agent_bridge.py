@@ -170,7 +170,7 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
         resp = anthropic.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=512,
             messages=[{"role":"user","content":full_prompt}],
             system=system
@@ -202,7 +202,7 @@ def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
         resp = anthropic.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=512,
             messages=[{"role":"user","content":full_prompt}],
             system=system_prompt
