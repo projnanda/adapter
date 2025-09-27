@@ -3,6 +3,8 @@ Bring your local agent. Make it **persistent**, **discoverable** and **interoper
 
 Help us build an Open and Vibrant Internet of Agents
 
+https://docs.google.com/presentation/d/16ehp8yq4-QjEu55unsI9rHJ8BMK9MAi1/edit?usp=sharing&ouid=108983880603476863262&rtpof=true&sd=true
+
 ## Features
 
 - **Multiple AI Frameworks**: Support for LangChain, CrewAI, and any custom logic.
