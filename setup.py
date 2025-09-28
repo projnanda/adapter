@@ -25,7 +25,7 @@ def read_readme():
 
 setup(
     name="nanda-adapter",
-    version="1.0.1",
+    version="1.0.2",
     description="Customizable AI Agent Communication Framework with pluggable message improvement logic",
     long_description=read_readme(),
     long_description_content_type="text/markdown",

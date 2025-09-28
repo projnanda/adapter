@@ -142,17 +142,20 @@ def send_message():
 
     try:
         data = request.json
+        print(f"Incoming Data from FE {data}")
         if not data or 'message' not in data:
             return jsonify({"error": "Missing message in request"}), 400
         
         message_text = data['message']
         conversation_id = data.get('conversation_id')
         client_id = data.get('client_id', 'ui_client')
+        comm_mode=data.get("comm_mode","frontend")
         
         # Create metadata for the message
         metadata = {
             'source': 'ui_client',
-            'client_id': client_id
+            'client_id': client_id,
+            'comm_mode': comm_mode
         }
 
         # Create an A2A client to talk to the agent bridge
