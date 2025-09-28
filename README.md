@@ -48,15 +48,23 @@ pip install nanda-adapter
 
 ### 4. Set Your environment variables and LLM Provider (For running your personal hosted agents, need API key and your own domain)
 
-> export ANTHROPIC_API_KEY="your-api-key-here"
-> export OPENAI_API_KEY="your-openai-api-key"
-> export GOOGLE_API_KEY="your-google-api-key"
-> export GROQ_API_KEY="your-groq-api-key"
-> export MISTRAL_API_KEY="your-mistral-api-key"
-> export COHERE_API_KEY="your-cohere-api-key"
-> export LLM_PROVIDER="anthropic"
-> export LLM_MODEL="claude-3-haiku-20240307"
-> export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>"
+Create a `.env` file with your configuration:
+
+```bash
+# Choose your LLM provider: anthropic, openai, gemini, groq, mistral, cohere, grok
+LLM_PROVIDER=anthropic
+LLM_MODEL=claude-3-haiku-20240307
+
+# Add API keys for providers you want to use
+ANTHROPIC_API_KEY=your-api-key-here
+OPENAI_API_KEY=your-openai-api-key
+GOOGLE_API_KEY=your-google-api-key
+GROQ_API_KEY=your-groq-api-key
+MISTRAL_API_KEY=your-mistral-api-key
+COHERE_API_KEY=your-cohere-api-key
+
+DOMAIN_NAME=<YOUR_DOMAIN_NAME.COM>
+```
 
 ### 5. Run an example agent (langchain_pirate.py)
 > nohup python3 langchain_pirate.py > out.log 2>&1 &
