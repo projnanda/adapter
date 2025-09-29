@@ -150,12 +150,18 @@ def send_message():
         conversation_id = data.get('conversation_id')
         client_id = data.get('client_id', 'ui_client')
         comm_mode=data.get("comm_mode","frontend")
+        chat_history=data.get("chat_history",[])
+        partner_capabilities = data.get("partner_capabilities",[])
+        agent_capabilities = data.get("agent_capabilities",[])
         
         # Create metadata for the message
         metadata = {
             'source': 'ui_client',
             'client_id': client_id,
-            'comm_mode': comm_mode
+            'comm_mode': comm_mode,
+            'chat_history':chat_history,
+            'partner_capabilities':partner_capabilities,
+            'agent_capabilities':agent_capabilities
         }
 
         # Create an A2A client to talk to the agent bridge

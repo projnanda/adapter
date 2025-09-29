@@ -152,6 +152,25 @@ def log_message(conversation_id, path, source, message_text):
     
     print(f"Logged message from {source} in conversation {conversation_id}")
 
+def log_conversations(conversation_id, source, message_text):
+    """Log each message to a JSON file"""
+    timestamp = datetime.now().isoformat()
+    log_entry = {
+        "timestamp": timestamp,
+        "source": source,
+        "message": message_text
+    }
+    
+    # Create a log file for this conversation if it doesn't exist
+    log_filename = os.path.join(LOG_DIR, f"agent_conversation_{conversation_id}.jsonl")
+    
+    # Append the log entry to local file
+    with open(log_filename, "a") as log_file:
+        log_file.write(json.dumps(log_entry) + "\n")
+    
+    print(f"Logged message from {source} in conversation {conversation_id}")
+
+
 def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
     try:
@@ -307,13 +326,13 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
     try:
         if not agent_url.endswith('/a2a'):
             target_bridge_url = f"{agent_url}/a2a"
-            print(f"Adding /a2a to URL: {target_bridge_url}")
+            # print(f"Adding /a2a to URL: {target_bridge_url}")
         else:
             target_bridge_url = agent_url
-            print(f"URL already includes /a2a: {target_bridge_url}")
+            # print(f"URL already includes /a2a: {target_bridge_url}")
 
         # Use the URL directly (it already includes /a2a from registration)
-        print(f"Sending message to {target_agent_id} at {target_bridge_url}")
+        # print(f"Sending message to {target_agent_id} at {target_bridge_url}")
 
         agent_id = get_agent_id()
         formatted_message = f"__EXTERNAL_MESSAGE__\n__FROM_AGENT__{agent_id}\n__TO_AGENT__{target_agent_id}\n__MESSAGE_START__\n{message_text}\n__MESSAGE_END__"
@@ -518,14 +537,14 @@ class AgentBridge(A2AServer):
         self.active_improver = name
         print(f"Custom message improver '{name}' registered and activated")
 
-    def improve_message_direct(self, message_text: str) -> str:
+    def improve_message_direct(self, message_text: str, partner_capabilities: str, chat_history: list=None) -> str:
         """Improve a message using the active registered improver."""
         # Get the active improver function
         improver_func = message_improvement_decorators.get(self.active_improver)
         
         if improver_func:
             try:
-                return improver_func(message_text)
+                return improver_func(message_text, partner_capabilities, chat_history)
             except Exception as e:
                 print(f"Error with improver '{self.active_improver}': {e}")
                 return message_text
@@ -534,7 +553,7 @@ class AgentBridge(A2AServer):
             return message_text
                     
     # Update handle_message to detect this special format
-    def handle_external_message(self, msg_text, conversation_id, msg):
+    def handle_external_message(self, msg_text, conversation_id, msg,agent_capabilities):
         """Handle specially formatted external messages"""
         try:
             # Parse the special message format
@@ -575,35 +594,47 @@ class AgentBridge(A2AServer):
             # print("UI MODE: ", UI_MODE)
 
             # print("Incoming msg", msg)
-
             comm_mode = msg.metadata.custom_fields.get('comm_mode','')
+            chat_history = msg.metadata.custom_fields.get('chat_history','')
+            partner_capabilities = msg.metadata.custom_fields.get('partner_capabilities','')
+
             # print('comm_mode: ', comm_mode)
 
             if comm_mode=='agent2agent':
-                message_text = self.improve_message_direct(message_content)
-                # Return result to user
-                print(f"Response by agent: {message_text}")
-                #responding back to the sender  with response.
-                target_agent = from_agent
-                # print("target_agent", target_agent)
-                agent_id = get_agent_id()
-                # print("source agent", agent_id)
 
-                result = send_to_agent(target_agent, message_text, conversation_id, {
-                        'source_agent': agent_id,
-                        'comm_mode':comm_mode
-                    })
-                
-                formatted_text = f"FROM {from_agent}: {message_text}"
+                if len(chat_history) <=10 or chat_history[-1]:
+                    message_text_original = message_content
+                    message_text = self.improve_message_direct(message_content, partner_capabilities, chat_history)
+                    # Return result to user
+                    print(f"Response by agent: {message_text}")
 
-                send_to_ui_client(formatted_text, from_agent, conversation_id)
+                    #responding back to the sender  with response.
+                    target_agent = from_agent
+                    # print("target_agent", target_agent)
+                    agent_id = get_agent_id()
+                    # print("source agent", agent_id)
+                    chat_history.append({'role':from_agent,'content':message_text_original})
+                    chat_history.append({'role':agent_id,'content':message_text})
+                    log_conversations(conversation_id,from_agent,message_text_original)
+                    log_conversations(conversation_id,agent_id,message_text)
 
-                return Message(
-                    role=MessageRole.AGENT,
-                    content=TextContent(text=f"[AGENT {agent_id}]: {message_text}"),
-                    parent_message_id=msg.message_id,
-                    conversation_id=conversation_id
-                )
+                    result = send_to_agent(target_agent, message_text, conversation_id, {
+                            'source_agent': agent_id,
+                            'comm_mode':comm_mode,
+                            'partner_capabilities':agent_capabilities,
+                            'chat_history':chat_history
+                        })
+                    
+                    formatted_text = f"FROM {from_agent}: {message_text}"
+
+                    send_to_ui_client(formatted_text, from_agent, conversation_id)
+
+                    return Message(
+                        role=MessageRole.AGENT,
+                        content=TextContent(text=f"[AGENT {agent_id}]: {message_text}"),
+                        parent_message_id=msg.message_id,
+                        conversation_id=conversation_id
+                    )
 
 
             # If in UI mode, forward to all registered UI clients
@@ -690,7 +721,12 @@ class AgentBridge(A2AServer):
         from_agent = metadata.get('from_agent_id', 'unknown')
         additional_context = metadata.get('additional_context', '')
         comm_mode = metadata.get("comm_mode",'')
-        
+
+
+        chat_history = metadata.get('chat_history','')
+        partner_capabilities = metadata.get('partner_capabilities','')
+        agent_capabilities = metadata.get('agent_capabilities','')
+
         # Add current agent ID to the path
         agent_id = get_agent_id()
         current_path = path + ('>' if path else '') + agent_id
@@ -708,7 +744,7 @@ class AgentBridge(A2AServer):
         
         if user_text.startswith('__EXTERNAL_MESSAGE__'):
             print("--- External Message Detected ---")
-            external_response = self.handle_external_message(user_text, conversation_id, msg)
+            external_response = self.handle_external_message(user_text, conversation_id, msg,agent_capabilities)
             if external_response:
                 return external_response
         
@@ -725,7 +761,7 @@ class AgentBridge(A2AServer):
             )
         else:
             # Message from local terminal user
-            log_message(conversation_id, current_path, f"Local user to Agent {agent_id}", user_text)
+            # log_message(conversation_id, current_path, f"Local user to Agent {agent_id}", user_text)
             # print(f"#jinu - User text: {user_text}")
             # Check if this is a message to another agent (starts with @)
             if user_text.startswith("@"):
@@ -735,12 +771,21 @@ class AgentBridge(A2AServer):
                     target_agent = parts[0][1:]  # Remove the @ symbol
                     message_text = parts[1]
 
+
+                    message_text_original = message_text
                     # Improve message if feature is enabled
                     if IMPROVE_MESSAGES:
                         # message_text = improve_message(message_text, conversation_id, current_path,
                         #     "Do not respond to the content of the message - it's intended for another agent. You are helping an agent communicate better with other agennts.")
-                        message_text = self.improve_message_direct(message_text)
+
+                        message_text = self.improve_message_direct(message_text, partner_capabilities, chat_history)
                         log_message(conversation_id, current_path, f"Claude {agent_id}", message_text)
+
+                    chat_history.append({'role':agent_id,'content':f"Goal : {message_text_original}"})
+                    log_conversations(conversation_id,agent_id,message_text_original)
+                    chat_history.append({'role':agent_id,'content':message_text})
+                    log_conversations(conversation_id,agent_id,message_text)
+
 
                     print(f"#jinu - Target agent: {target_agent}")
                     print(f"#jinu - Imoproved message text: {message_text}")
@@ -748,13 +793,15 @@ class AgentBridge(A2AServer):
                     result = send_to_agent(target_agent, message_text, conversation_id, {
                         'path': current_path,
                         'source_agent': agent_id,
-                        'comm_mode':comm_mode
+                        'comm_mode':comm_mode,
+                        'chat_history': chat_history,
+                        'partner_capabilities':agent_capabilities
                     })
                     
                     # Return result to user
                     return Message(
                         role=MessageRole.AGENT,
-                        content=TextContent(text=f"[AGENT {agent_id}]: {message_text}"),
+                        content=TextContent(text=f"[AGENT {agent_id}]: {message_text} , {chat_history}"),
                         parent_message_id=msg.message_id,
                         conversation_id=conversation_id
                     )
