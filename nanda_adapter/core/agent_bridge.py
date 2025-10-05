@@ -160,9 +160,10 @@ def log_conversations(conversation_id, source, message_text):
         "source": source,
         "message": message_text
     }
+    agent_id = get_agent_id()
     
     # Create a log file for this conversation if it doesn't exist
-    log_filename = os.path.join(LOG_DIR, f"agent_conversation_{conversation_id}.jsonl")
+    log_filename = os.path.join(LOG_DIR, f"agent_{agent_id}_conversation_{conversation_id}.jsonl")
     
     # Append the log entry to local file
     with open(log_filename, "a") as log_file:
@@ -601,8 +602,7 @@ class AgentBridge(A2AServer):
             # print('comm_mode: ', comm_mode)
 
             if comm_mode=='agent2agent':
-
-                if len(chat_history) <=10 or chat_history[-1]:
+                if len(chat_history) <=30 and chat_history[-1]["content"]['follow_up']:
                     message_text_original = message_content
                     message_text = self.improve_message_direct(message_content, partner_capabilities, chat_history)
                     # Return result to user
