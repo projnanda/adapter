@@ -291,7 +291,7 @@ class NANDA:
 
         print("******************************************************")
         print("You can assign your agent using this link")
-        print(f"https://chat.nanda-registry.com/landing.html?agentId={agent_id}")
+        print(f"https://chat39.com?agentId={agent_id}")
         print("******************************************************")
         # Keep the main process alive so threads continue running
         try:
