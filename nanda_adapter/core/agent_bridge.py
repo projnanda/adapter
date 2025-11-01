@@ -8,24 +8,24 @@ import requests
 from typing import Optional
 from datetime import datetime
 from anthropic import Anthropic, APIStatusError
+from .llm_config import call_llm
+from llm_config import call_llm
 from python_a2a import (
     A2AServer, A2AClient, run_server,
     Message, TextContent, MessageRole, ErrorContent, Metadata
 )
 import asyncio
-from mcp_utils import MCPClient
+from .mcp_utils import MCPClient
 import base64
 
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
-# Set API key through environment variable or directly in the code
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
-
 # Toggle for message improvement feature
 IMPROVE_MESSAGES = os.getenv("IMPROVE_MESSAGES", "true").lower() in ("true", "1", "yes", "y")
 
-# Create Anthropic client with explicit API key
+# Legacy support - keep for backward compatibility
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
 anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # Get agent configuration from environment variables
@@ -152,8 +152,8 @@ def log_message(conversation_id, path, source, message_text):
     
     print(f"Logged message from {source} in conversation {conversation_id}")
 
-def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
-    """Wrapper that never raises: returns text or None on failure."""
+def call_llm_wrapper(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
+    """Multi-provider LLM wrapper that never raises: returns text or None on failure."""
     try:
         # Use the specified system prompt or default to the agent's system prompt
         if system_prompt:
@@ -165,65 +165,60 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         # Combine the prompt with additional context if provided
         full_prompt = prompt
         if additional_context and additional_context.strip():
-            full_prompt = f"ADDITIONAL CONTEXT FRseOM USER: {additional_context}\n\nMESSAGE: {prompt}"
+            full_prompt = f"ADDITIONAL CONTEXT FROM USER: {additional_context}\n\nMESSAGE: {prompt}"
         
         agent_id = get_agent_id()
-        print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        resp = anthropic.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=512,
-            messages=[{"role":"user","content":full_prompt}],
-            system=system
-        )
-        response_text = resp.content[0].text
+        provider = os.getenv("LLM_PROVIDER", "anthropic").upper()
+        print(f"Agent {agent_id}: Calling {provider} with prompt: {full_prompt[:50]}...")
         
-        # Log the Claude response
-        log_message(conversation_id, current_path, f"Claude {agent_id}", response_text)
+        # Use the multi-provider function
+        response_text = call_llm(full_prompt, system)
         
-        return response_text
-    except APIStatusError as e:
-        print(f"Agent {agent_id}: Anthropic API error:", e.status_code, e.message, flush=True)
-        # If we hit a credit limit error, return a fallback message
-        if "credit balance is too low" in str(e):
-            return f"Agent {agent_id} processed (API credit limit reached): {prompt}"
+        if response_text:
+            # Log the LLM response
+            log_message(conversation_id, current_path, f"{provider} {agent_id}", response_text)
+            return response_text
+        else:
+            print(f"Agent {agent_id}: {provider} returned no response")
+            return None
+            
     except Exception as e:
-        print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
+        agent_id = get_agent_id()
+        provider = os.getenv("LLM_PROVIDER", "anthropic").upper()
+        print(f"Agent {agent_id}: {provider} error:", e, flush=True)
         traceback.print_exc()
-    return None
+        return None
 
-def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
-    """Wrapper that never raises: returns text or None on failure."""
+# Legacy function for backward compatibility
+def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
+    """Legacy Claude wrapper - redirects to call_llm_wrapper"""
+    return call_llm_wrapper(prompt, additional_context, conversation_id, current_path, system_prompt)
+
+def call_llm_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
+    """Multi-provider LLM wrapper for direct calls"""
     try:
-        # Use the specified system prompt or default to the agent's system prompt
-        
-        # Combine the prompt with additional context if provided
         full_prompt = f"MESSAGE: {message_text}"
-        
         agent_id = get_agent_id()
-        print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        resp = anthropic.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=512,
-            messages=[{"role":"user","content":full_prompt}],
-            system=system_prompt
-        )
-        response_text = resp.content[0].text
+        provider = os.getenv("LLM_PROVIDER", "anthropic").upper()
+        print(f"Agent {agent_id}: Calling {provider} with prompt: {full_prompt[:50]}...")
         
-        # Log the Claude response
-        
+        response_text = call_llm(full_prompt, system_prompt)
         return response_text
-    except APIStatusError as e:
-        print(f"Agent {agent_id}: Anthropic API error:", e.status_code, e.message, flush=True)
-        # If we hit a credit limit error, return a fallback message
-        if "credit balance is too low" in str(e):
-            return f"Agent {agent_id} processed (API credit limit reached): {message_text}"
+        
     except Exception as e:
-        print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
+        agent_id = get_agent_id()
+        provider = os.getenv("LLM_PROVIDER", "anthropic").upper()
+        print(f"Agent {agent_id}: {provider} error:", e, flush=True)
         traceback.print_exc()
-    return None
+        return None
+
+# Legacy function for backward compatibility
+def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
+    """Legacy Claude wrapper - redirects to call_llm_direct"""
+    return call_llm_direct(message_text, system_prompt)
 
 def improve_message(message_text: str, conversation_id: str, current_path: str, additional_prompt: str=None) -> str:
-    """Improve a message using Claude before forwarding it to the other party."""
+    """Improve a message using the configured LLM provider before forwarding it to the other party."""
     if not IMPROVE_MESSAGES:
         return message_text
     
@@ -234,10 +229,10 @@ def improve_message(message_text: str, conversation_id: str, current_path: str, 
             # Use the appropriate improvement prompt based on agent ID
             system_prompt = IMPROVE_MESSAGE_PROMPTS["default"]
         
-        # Call Claude to improve the message
-        improved_message = call_claude(message_text, "", conversation_id, current_path, system_prompt)
+        # Call the configured LLM provider to improve the message
+        improved_message = call_llm_wrapper(message_text, "", conversation_id, current_path, system_prompt)
         
-        # If Claude successfully improved the message, use that; otherwise, use the original
+        # If LLM successfully improved the message, use that; otherwise, use the original
         return improved_message if improved_message else message_text
     except Exception as e:
         print(f"Error improving message: {e}")
@@ -572,29 +567,35 @@ def list_message_improvers():
     return list(message_improvement_decorators.keys())
 
 # Default improver
-@message_improver("default_claude")
-def default_claude_improver(message_text: str) -> str:
-    """Default Claude-based message improvement"""
+@message_improver("default_llm")
+def default_llm_improver(message_text: str) -> str:
+    """Default multi-provider LLM-based message improvement"""
     if not IMPROVE_MESSAGES:
         return message_text
     
     try:
-        additional_prompt = "Do not respond to the content of the message - it's intended for another agent. You are helping an agent communicate better with other agennts."
+        additional_prompt = "Do not respond to the content of the message - it's intended for another agent. You are helping an agent communicate better with other agents."
         system_prompt = additional_prompt + IMPROVE_MESSAGE_PROMPTS["default"]
         print(system_prompt)
-        improved_message = call_claude_direct(message_text, system_prompt)
+        improved_message = call_llm_direct(message_text, system_prompt)
         print(f"Improved message: {improved_message}")
         return improved_message if improved_message else message_text
     except Exception as e:
         print(f"Error improving message: {e}")
         return message_text
 
+# Legacy improver for backward compatibility
+@message_improver("default_claude")
+def default_claude_improver(message_text: str) -> str:
+    """Legacy Claude improver - redirects to default_llm_improver"""
+    return default_llm_improver(message_text)
+
 class AgentBridge(A2AServer):
     """Global Agent Bridge - Can be used for any agent in the network."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.active_improver = "default_claude"  # Default improver
+        self.active_improver = "default_llm"  # Default multi-provider improver
     
     def set_message_improver(self, improver_name):
         """Set the active message improver by name"""
@@ -819,20 +820,20 @@ class AgentBridge(A2AServer):
                         query_text = parts[1]
                         print(f"Processing query command: '{query_text}'")
 
-                        # Call Claude with the query
-                        claude_response = call_claude(query_text, additional_context, conversation_id, current_path,
-                            "You are Claude, an AI assistant. Provide a direct, helpful response to the user's question. Treat it as a private request for guidance and respond only to the user.")
+                        # Call the configured LLM with the query
+                        llm_response = call_llm_wrapper(query_text, additional_context, conversation_id, current_path,
+                            "You are an AI assistant. Provide a direct, helpful response to the user's question. Treat it as a private request for guidance and respond only to the user.")
                         
                         # Make sure we have a valid response
-                        if not claude_response:
-                            print("Warning: Claude returned empty response")
-                            claude_response = "Sorry, I couldn't process your query. Please try again."
+                        if not llm_response:
+                            print("Warning: LLM returned empty response")
+                            llm_response = "Sorry, I couldn't process your query. Please try again."
                         else:
-                            print(f"Claude response received ({len(claude_response)} chars)")
-                            print(f"Response preview: {claude_response[:50]}...")
+                            print(f"LLM response received ({len(llm_response)} chars)")
+                            print(f"Response preview: {llm_response[:50]}...")
 
                         # Format and return the response
-                        formatted_response = f"[AGENT {agent_id}] {claude_response}"
+                        formatted_response = f"[AGENT {agent_id}] {llm_response}"
                         
                         # Return to local terminal
                         response_message = Message(
@@ -867,8 +868,8 @@ class AgentBridge(A2AServer):
                             
             else:
                 # Regular message - process locally 
-                claude_response = call_claude(user_text, additional_context, conversation_id, current_path) or user_text
-                formatted_response = f"[AGENT {agent_id}] {claude_response}"
+                llm_response = call_llm_wrapper(user_text, additional_context, conversation_id, current_path) or user_text
+                formatted_response = f"[AGENT {agent_id}] {llm_response}"
                 
                 # Return Claude's response to local terminal
                 return Message(

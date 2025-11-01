@@ -46,11 +46,25 @@ pip install nanda-adapter
 
 > chmod 600 fullchain.pem privkey.pem`
 
-### 4. Set Your enviroment variables ANTHROPIC_API_KEY (For running your personal hosted agents, need API key and your own domain)
+### 4. Set Your environment variables and LLM Provider (For running your personal hosted agents, need API key and your own domain)
 
-> export ANTHROPIC_API_KEY="your-api-key-here
+Create a `.env` file with your configuration:
 
-> export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>
+```bash
+# Choose your LLM provider: anthropic, openai, gemini, groq, mistral, cohere, grok
+LLM_PROVIDER=anthropic
+LLM_MODEL=claude-3-haiku-20240307
+
+# Add API keys for providers you want to use
+ANTHROPIC_API_KEY=your-api-key-here
+OPENAI_API_KEY=your-openai-api-key
+GOOGLE_API_KEY=your-google-api-key
+GROQ_API_KEY=your-groq-api-key
+MISTRAL_API_KEY=your-mistral-api-key
+COHERE_API_KEY=your-cohere-api-key
+
+DOMAIN_NAME=<YOUR_DOMAIN_NAME.COM>
+```
 
 ### 5. Run an example agent (langchain_pirate.py)
 > nohup python3 langchain_pirate.py > out.log 2>&1 &
@@ -244,7 +258,21 @@ The framework will automatically:
 ### Environment Variables
 You need the following environment details ()
 
-- `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
+**LLM Provider Configuration:**
+- `LLM_PROVIDER`: Choose LLM provider - anthropic, openai, gemini, groq, mistral, cohere, grok (default: anthropic)
+- `LLM_MODEL`: Model name for the selected provider (default: claude-3-haiku-20240307)
+- `LLM_MAX_TOKENS`: Maximum tokens for responses (default: 512)
+- `LLM_TEMPERATURE`: Response temperature (default: 0.7)
+
+**API Keys (add keys for providers you want to use):**
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `GOOGLE_API_KEY`: Your Google API key
+- `GROQ_API_KEY`: Your Groq API key
+- `MISTRAL_API_KEY`: Your Mistral API key
+- `COHERE_API_KEY`: Your Cohere API key
+
+**Agent Configuration:**
 - `DOMAIN_NAME`: Domain name for SSL certificates (required)
 - `AGENT_ID`: Custom agent ID (optional, auto-generated if not provided)
 - `PORT`: Agent bridge port (optional, default: 6000)
