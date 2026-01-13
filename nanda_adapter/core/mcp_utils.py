@@ -11,7 +11,11 @@ from mcp.client.streamable_http import streamablehttp_client
 import json
 import base64
 
-from anthropic import Anthropic
+# Handle different import contexts
+try:
+    from .llm_providers import get_provider
+except ImportError:
+    from llm_providers import get_provider
 
 
 import sys
@@ -38,8 +42,7 @@ class MCPClient:
     def __init__(self):
         self.session = None
         self.exit_stack = AsyncExitStack()
-        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your-key"
-        self.anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
+        self.provider = get_provider()
 
     async def connect_to_mcp_and_get_tools(self, mcp_server_url, transport_type="http"):
         """Connect to MCP server and return available tools
@@ -89,28 +92,48 @@ class MCPClient:
             # Initialize message history
             messages = [{"role": "user", "content": query}]
             
-            # Call Claude API
-            message = self.anthropic.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=1024,
-                messages=messages,
-                tools=available_tools
-            )
+            # Use the provider abstraction for tool calling
+            provider = self.provider
+            print(f"Using LLM provider: {provider.name}")
+            
+            response = provider.complete_with_tools(messages, available_tools, max_tokens=1024)
+            
+            if "error" in response:
+                return f"LLM Error: {response['error']}"
             
             # Keep processing until we get a final response without tool calls
             while True:
                 has_tool_calls = False
+                content = response.get("content", [])
+                
+                # Handle different content formats (Anthropic raw vs unified)
+                if hasattr(content, '__iter__') and not isinstance(content, (str, dict)):
+                    blocks = content
+                else:
+                    blocks = [content] if content else []
                 
                 # Process each block in the response
-                for block in message.content:
-                    print(block)
-                    print(block.type)
+                for block in blocks:
+                    # Handle both dict format and object format
+                    if isinstance(block, dict):
+                        block_type = block.get("type", "text")
+                        block_id = block.get("id", "")
+                        block_name = block.get("name", "")
+                        block_input = block.get("input", {})
+                        block_text = block.get("text", "")
+                    else:
+                        block_type = getattr(block, "type", "text")
+                        block_id = getattr(block, "id", "")
+                        block_name = getattr(block, "name", "")
+                        block_input = getattr(block, "input", {})
+                        block_text = getattr(block, "text", "")
                     
-                    if block.type == "tool_use":
+                    print(f"Block type: {block_type}")
+                    
+                    if block_type == "tool_use":
                         has_tool_calls = True
-                        # Extract tool name and arguments
-                        tool_name = block.name
-                        tool_args = block.input
+                        tool_name = block_name
+                        tool_args = block_input
                         
                         # Call the tool
                         result = await self.session.call_tool(tool_name, tool_args)
@@ -125,7 +148,7 @@ class MCPClient:
                             "role": "assistant",
                             "content": [{
                                 "type": "tool_use",
-                                "id": block.id,
+                                "id": block_id,
                                 "name": tool_name,
                                 "input": tool_args
                             }]
@@ -136,7 +159,7 @@ class MCPClient:
                             "role": "user",
                             "content": [{
                                 "type": "tool_result",
-                                "tool_use_id": block.id,
+                                "tool_use_id": block_id,
                                 "content": str(processed_result)
                             }]
                         })
@@ -145,25 +168,37 @@ class MCPClient:
                 if not has_tool_calls:
                     break
                     
-                print("Getting next response from Claude...")
-                # Get next response from Claude
-                message = self.anthropic.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=1024,
-                    messages=messages,
-                    tools=available_tools
-                )
-                print(message)
+                print(f"Getting next response from {provider.name}...")
+                response = provider.complete_with_tools(messages, available_tools, max_tokens=1024)
+                
+                if "error" in response:
+                    return f"LLM Error: {response['error']}"
+                
+                print(f"Response: {response}")
             
             # Return the final response
             final_response = ""
-            for block in message.content:
-                if block.type == "text":
-                    final_response += block.text + "\n"
+            content = response.get("content", [])
+            
+            if hasattr(content, '__iter__') and not isinstance(content, (str, dict)):
+                blocks = content
+            else:
+                blocks = [content] if content else []
+            
+            for block in blocks:
+                if isinstance(block, dict):
+                    if block.get("type") == "text":
+                        final_response += block.get("text", "") + "\n"
+                else:
+                    if getattr(block, "type", "") == "text":
+                        final_response += getattr(block, "text", "") + "\n"
+            
             return parse_jsonrpc_response(final_response.strip()) if final_response else "No response generated"
             
         except Exception as e:
             print(f"Error processing query: {e}")
+            import traceback
+            traceback.print_exc()
             return f"Error: {str(e)}"
 
     async def __aenter__(self):

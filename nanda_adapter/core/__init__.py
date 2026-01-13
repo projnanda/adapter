@@ -13,6 +13,15 @@ from .agent_bridge import (
     get_message_improver, 
     list_message_improvers
 )
+from .llm_providers import (
+    LLMProvider,
+    AnthropicProvider,
+    HuggingFaceProvider,
+    get_provider,
+    set_provider,
+    create_provider,
+    init_provider
+)
 
 __all__ = [
     "NANDA",
@@ -20,5 +29,13 @@ __all__ = [
     "message_improver",
     "register_message_improver", 
     "get_message_improver",
-    "list_message_improvers"
+    "list_message_improvers",
+    # LLM Providers
+    "LLMProvider",
+    "AnthropicProvider",
+    "HuggingFaceProvider",
+    "get_provider",
+    "set_provider",
+    "create_provider",
+    "init_provider"
 ]

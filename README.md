@@ -8,6 +8,7 @@ https://docs.google.com/presentation/d/16ehp8yq4-QjEu55unsI9rHJ8BMK9MAi1/edit?us
 ## Features
 
 - **Multiple AI Frameworks**: Support for LangChain, CrewAI, and any custom logic.
+- **Multiple LLM Providers**: Use Anthropic Claude, Hugging Face, or other providers.
 - **Multi-protocol Communication**: Built-in protocol that allows universal communication
 - **Global Index**: Automatic agent discovery via MIT NANDA Index
 - **SSL Support**: Production-ready with Let's Encrypt certificates
@@ -51,6 +52,14 @@ pip install nanda-adapter
 > export ANTHROPIC_API_KEY="your-api-key-here
 
 > export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>
+
+**Alternative: Use Hugging Face instead of Anthropic**
+
+> export HUGGINGFACE_API_KEY="hf_your-api-key-here"
+
+> export HUGGINGFACE_MODEL="meta-llama/Llama-3.3-70B-Instruct"
+
+> export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>"
 
 ### 5. Run an example agent (langchain_pirate.py)
 > nohup python3 langchain_pirate.py > out.log 2>&1 &
@@ -187,6 +196,50 @@ domain = os.getenv("DOMAIN_NAME")
 nanda.start_server_api(anthropic_key, domain)
 ```
 
+### Deploy with Hugging Face (Alternative to Anthropic)
+
+You can use Hugging Face Inference API instead of Anthropic:
+
+```python
+#!/usr/bin/env python3
+from nanda_adapter import NANDA
+import os
+
+def create_simple_improvement():
+    """Create a simple improvement function"""
+    def simple_improvement(message_text: str) -> str:
+        return f"[Enhanced] {message_text}"
+    return simple_improvement
+
+def main():
+    nanda = NANDA(create_simple_improvement())
+    
+    # Use Hugging Face instead of Anthropic
+    nanda.start_server_api(
+        anthropic_key=None,  # Not needed for HuggingFace
+        domain=os.getenv("DOMAIN_NAME"),
+        llm_provider="huggingface",
+        llm_model="meta-llama/Llama-3.3-70B-Instruct",
+        llm_api_key=os.getenv("HUGGINGFACE_API_KEY")
+    )
+
+if __name__ == "__main__":
+    main()
+```
+
+**For local development without SSL:**
+
+```python
+nanda.start_server_api(
+    anthropic_key=None,
+    domain="localhost",
+    llm_provider="huggingface",
+    llm_model="meta-llama/Llama-3.3-70B-Instruct",
+    llm_api_key=os.getenv("HUGGINGFACE_API_KEY"),
+    ssl=False  # Disable SSL for local testing
+)
+```
+
 ## Deploy from Scratch on a barebones machine (Ubuntu on Linode or Amazon Linux on EC2)
 
 ```bash
@@ -242,13 +295,46 @@ The framework will automatically:
 ## Appendix: Configuration Details
 
 ### Environment Variables
-You need the following environment details ()
 
-- `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
-- `DOMAIN_NAME`: Domain name for SSL certificates (required)
+**Core Settings:**
+- `DOMAIN_NAME`: Domain name for SSL certificates (required for production)
 - `AGENT_ID`: Custom agent ID (optional, auto-generated if not provided)
 - `PORT`: Agent bridge port (optional, default: 6000)
 - `IMPROVE_MESSAGES`: Enable/disable message improvement (optional, default: true)
+
+**LLM Provider Settings (choose one):**
+
+*Anthropic (default):*
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `ANTHROPIC_MODEL`: Model to use (optional, default: claude-3-5-sonnet-20241022)
+
+*Hugging Face:*
+- `HUGGINGFACE_API_KEY`: Your Hugging Face API key
+- `HUGGINGFACE_MODEL`: Model to use (optional, default: meta-llama/Llama-3.3-70B-Instruct)
+
+*General:*
+- `LLM_PROVIDER`: Provider to use - "anthropic" or "huggingface" (optional, default: anthropic)
+
+### start_server_api() Parameters
+
+```python
+nanda.start_server_api(
+    anthropic_key,        # Anthropic API key (or None if using other provider)
+    domain,               # Domain name for the server
+    agent_id=None,        # Custom agent ID (auto-generated if not provided)
+    port=6000,            # Agent bridge port
+    api_port=6001,        # Flask API port
+    registry=None,        # Registry URL (optional)
+    public_url=None,      # Public URL for Agent Bridge (optional)
+    api_url=None,         # API URL for User Client (optional)
+    cert=None,            # Path to SSL certificate (optional)
+    key=None,             # Path to SSL key (optional)
+    ssl=True,             # Enable SSL (default: True)
+    llm_provider=None,    # "anthropic" or "huggingface" (default: anthropic)
+    llm_model=None,       # Model name/ID (uses provider default if not set)
+    llm_api_key=None      # API key for the LLM provider
+)
+```
 
 ### Production Deployment
 

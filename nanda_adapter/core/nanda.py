@@ -18,12 +18,14 @@ import threading
 try:
     from .agent_bridge import *
     from . import run_ui_agent_https
+    from .llm_providers import init_provider
 except ImportError:
     # If running from parent directory, add current directory to path
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, current_dir)
     from agent_bridge import *
     import run_ui_agent_https
+    from llm_providers import init_provider
 
 class NANDA:
     """NANDA class to create agent_bridge with custom improvement logic"""
@@ -68,7 +70,7 @@ class NANDA:
         api_url = os.getenv("API_URL")
         agent_id = os.getenv("AGENT_ID")
 
-        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
+        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") 
         AGENT_ID = os.getenv("AGENT_ID", "default")  # Default to 'default' if not specified
         PORT = int(os.getenv("PORT", "6000"))
         TERMINAL_PORT = int(os.getenv("TERMINAL_PORT", "6010"))
@@ -105,13 +107,14 @@ class NANDA:
         # Run the agent bridge server
         run_server(self.bridge, host="0.0.0.0", port=PORT) 
 
-    def start_server_api(self, anthropic_key, domain, agent_id=None, port=6000, api_port=6001, 
-                        registry=None, public_url=None, api_url=None, cert=None, key=None, ssl=True):
+    def start_server_api(self, anthropic_key=None, domain=None, agent_id=None, port=6000, api_port=6001, 
+                        registry=None, public_url=None, api_url=None, cert=None, key=None, ssl=True,
+                        llm_provider=None, llm_model=None, llm_api_key=None):
         """
         Start NANDA API server using run_ui_agent_https module
         
         Args:
-            anthropic_key (str): Anthropic API key
+            anthropic_key (str): Anthropic API key (used if llm_provider is 'anthropic' or None)
             domain (str): Domain name for the server
             agent_id (str): Agent ID (default: auto-generated based on domain)
             port (int): Agent bridge port (default: 6000)
@@ -122,7 +125,23 @@ class NANDA:
             cert (str): Path to SSL certificate file (optional, defaults to Let's Encrypt path)
             key (str): Path to SSL key file (optional, defaults to Let's Encrypt path)
             ssl (bool): Enable SSL (default: True, uses Let's Encrypt certificates)
+            llm_provider (str): LLM provider to use - 'anthropic' (default) or 'huggingface'
+            llm_model (str): Model name/ID to use (optional, uses provider default)
+            llm_api_key (str): API key for the LLM provider (optional, overrides anthropic_key for non-anthropic providers)
         """
+        # Initialize the LLM provider
+        effective_provider = llm_provider or "anthropic"
+        effective_api_key = llm_api_key if llm_api_key else anthropic_key
+        
+        print(f"🔧 Initializing LLM provider: {effective_provider}")
+        if llm_model:
+            print(f"🔧 Using model: {llm_model}")
+        
+        init_provider(
+            provider_name=effective_provider,
+            api_key=effective_api_key,
+            model=llm_model
+        )
         # Get the server IP address (assumes a public IP)
         def get_server_ip():
             """Get the public IP address of the server"""
@@ -194,7 +213,9 @@ class NANDA:
             api_url = f"{protocol}://{domain}:{api_port}"
         
         # Set environment variables for the agent bridge (same as run_ui_agent_https main())
-        os.environ["ANTHROPIC_API_KEY"] = anthropic_key
+        # Only set ANTHROPIC_API_KEY if it's provided (not needed for other providers)
+        if anthropic_key:
+            os.environ["ANTHROPIC_API_KEY"] = anthropic_key
         os.environ["AGENT_ID"] = agent_id
         os.environ["PORT"] = str(port)
         os.environ["PUBLIC_URL"] = public_url

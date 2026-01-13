@@ -11,3 +11,5 @@ dist/
 *.egg-info/
 
 nanda_adapter/core/__pycache__
+
+*/__pycache__/

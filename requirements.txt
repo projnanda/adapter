@@ -3,7 +3,6 @@ anthropic
 requests
 python-a2a==0.5.6
 mcp
-anthropic
 python-dotenv
 flask-cors
-pymongo
+huggingface_hub

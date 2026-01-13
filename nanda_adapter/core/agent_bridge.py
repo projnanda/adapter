@@ -7,26 +7,26 @@ import threading
 import requests
 from typing import Optional
 from datetime import datetime
-from anthropic import Anthropic, APIStatusError
 from python_a2a import (
     A2AServer, A2AClient, run_server,
     Message, TextContent, MessageRole, ErrorContent, Metadata
 )
 import asyncio
-from mcp_utils import MCPClient
 import base64
+
+# Handle different import contexts
+try:
+    from .llm_providers import get_provider, init_provider
+    from .mcp_utils import MCPClient
+except ImportError:
+    from llm_providers import get_provider, init_provider
+    from mcp_utils import MCPClient
 
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
-# Set API key through environment variable or directly in the code
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
-
 # Toggle for message improvement feature
 IMPROVE_MESSAGES = os.getenv("IMPROVE_MESSAGES", "true").lower() in ("true", "1", "yes", "y")
-
-# Create Anthropic client with explicit API key
-anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # Get agent configuration from environment variables
 def get_agent_id():
@@ -58,7 +58,9 @@ IMPROVE_MESSAGE_PROMPTS = {
     "default": "Improve the following message to make it more clear, compelling, and professional without changing the core content or adding fictional information. Keep the same overall meaning but enhance the phrasing and structure. Don't make it too verbose - keep it concise but impactful. Return only the improved message without explanations or introductions."
 }
 
-SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"
+SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY")
+if not SMITHERY_API_KEY:
+    print("WARNING: SMITHERY_API_KEY not set - Smithery MCP servers will not work")
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
@@ -153,7 +155,7 @@ def log_message(conversation_id, path, source, message_text):
     print(f"Logged message from {source} in conversation {conversation_id}")
 
 def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
-    """Wrapper that never raises: returns text or None on failure."""
+    """Wrapper that never raises: returns text or None on failure. Uses configured LLM provider."""
     try:
         # Use the specified system prompt or default to the agent's system prompt
         if system_prompt:
@@ -165,60 +167,41 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         # Combine the prompt with additional context if provided
         full_prompt = prompt
         if additional_context and additional_context.strip():
-            full_prompt = f"ADDITIONAL CONTEXT FRseOM USER: {additional_context}\n\nMESSAGE: {prompt}"
+            full_prompt = f"ADDITIONAL CONTEXT FROM USER: {additional_context}\n\nMESSAGE: {prompt}"
         
         agent_id = get_agent_id()
-        print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        resp = anthropic.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=512,
-            messages=[{"role":"user","content":full_prompt}],
-            system=system
-        )
-        response_text = resp.content[0].text
+        provider = get_provider()
+        print(f"Agent {agent_id}: Calling {provider.name} with prompt: {full_prompt[:50]}...")
         
-        # Log the Claude response
-        log_message(conversation_id, current_path, f"Claude {agent_id}", response_text)
+        response_text = provider.complete(full_prompt, system=system, max_tokens=512)
+        
+        if response_text:
+            # Log the LLM response
+            log_message(conversation_id, current_path, f"{provider.name} {agent_id}", response_text)
         
         return response_text
-    except APIStatusError as e:
-        print(f"Agent {agent_id}: Anthropic API error:", e.status_code, e.message, flush=True)
-        # If we hit a credit limit error, return a fallback message
-        if "credit balance is too low" in str(e):
-            return f"Agent {agent_id} processed (API credit limit reached): {prompt}"
     except Exception as e:
-        print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
+        agent_id = get_agent_id()
+        print(f"Agent {agent_id}: LLM error:", e, flush=True)
         traceback.print_exc()
     return None
 
 def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
-    """Wrapper that never raises: returns text or None on failure."""
+    """Wrapper that never raises: returns text or None on failure. Uses configured LLM provider."""
     try:
-        # Use the specified system prompt or default to the agent's system prompt
-        
         # Combine the prompt with additional context if provided
         full_prompt = f"MESSAGE: {message_text}"
         
         agent_id = get_agent_id()
-        print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        resp = anthropic.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=512,
-            messages=[{"role":"user","content":full_prompt}],
-            system=system_prompt
-        )
-        response_text = resp.content[0].text
+        provider = get_provider()
+        print(f"Agent {agent_id}: Calling {provider.name} with prompt: {full_prompt[:50]}...")
         
-        # Log the Claude response
+        response_text = provider.complete(full_prompt, system=system_prompt, max_tokens=512)
         
         return response_text
-    except APIStatusError as e:
-        print(f"Agent {agent_id}: Anthropic API error:", e.status_code, e.message, flush=True)
-        # If we hit a credit limit error, return a fallback message
-        if "credit balance is too low" in str(e):
-            return f"Agent {agent_id} processed (API credit limit reached): {message_text}"
     except Exception as e:
-        print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
+        agent_id = get_agent_id()
+        print(f"Agent {agent_id}: LLM error:", e, flush=True)
         traceback.print_exc()
     return None
 
