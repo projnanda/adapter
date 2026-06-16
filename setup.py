@@ -47,7 +47,8 @@ setup(
     extras_require={
         "langchain": ["langchain-core", "langchain-anthropic"],
         "crewai": ["crewai", "langchain-anthropic"],
-        "all": ["langchain-core", "langchain-anthropic", "crewai"]
+        "attestix": ["attestix>=0.4.0"],
+        "all": ["langchain-core", "langchain-anthropic", "crewai", "attestix>=0.4.0"]
     },
     entry_points={
         "console_scripts": [
