@@ -110,6 +110,28 @@ if __name__ == "__main__":
     main()
 ```
 
+### Registering with AgentFacts
+
+Pass an `agent_facts` dict to publish skills and capabilities at registration.
+See [agentfacts](https://github.com/projnanda/agentfacts) for the schema.
+
+```python
+agent_facts = {
+    "agent_name": "pirate-bot",
+    "label": "Pirate Translator",
+    "description": "Translates messages into pirate English",
+    "version": "1.0.0",
+    "skills": [
+        {"id": "translate.pirate", "description": "Translate to pirate English"}
+    ],
+}
+
+nanda = NANDA(my_improvement, agent_facts=agent_facts)
+nanda.start_server_api(anthropic_key, domain)
+```
+
+If running `agent_bridge.py` directly, set `AGENT_FACTS_PATH` to a JSON file.
+
 ### Deploy a LangChain Agent
 
 ```python
