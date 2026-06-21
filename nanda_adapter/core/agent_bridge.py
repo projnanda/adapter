@@ -76,7 +76,7 @@ def get_registry_url():
     print(f"Using default registry URL: {default_url}")
     return default_url
 
-def register_with_registry(agent_id, agent_url, api_url):
+def register_with_registry(agent_id, agent_url, api_url, agent_facts=None):
     """Register this agent with the registry"""
     registry_url = get_registry_url()
     try:
@@ -89,6 +89,8 @@ def register_with_registry(agent_id, agent_url, api_url):
             "agent_url": agent_url,
             "api_url": api_url
         }
+        if agent_facts:
+            data["agent_facts"] = agent_facts
         print(f"Registering agent {agent_id} with URL {agent_url} at registry {registry_url}...")
         response = requests.post(f"{registry_url}/register", json=data)
         if response.status_code == 200:
@@ -878,13 +880,25 @@ class AgentBridge(A2AServer):
                     conversation_id = conversation_id
                 )
 
+def _load_agent_facts_from_env():
+    """Load agent_facts JSON from AGENT_FACTS_PATH if set"""
+    facts_path = os.getenv("AGENT_FACTS_PATH")
+    if not facts_path:
+        return None
+    try:
+        with open(facts_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Could not read agent facts from {facts_path}: {e}")
+        return None
+
 if __name__ == "__main__":
     # Register with the registry if PUBLIC_URL is set
     public_url = os.getenv("PUBLIC_URL")
     api_url = os.getenv("API_URL")
     if public_url:
         agent_id = get_agent_id()
-        register_with_registry(agent_id, public_url, api_url)
+        register_with_registry(agent_id, public_url, api_url, agent_facts=_load_agent_facts_from_env())
     else:
         print("WARNING: PUBLIC_URL environment variable not set. Agent will not be registered.")
     

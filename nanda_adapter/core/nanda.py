@@ -28,14 +28,18 @@ except ImportError:
 class NANDA:
     """NANDA class to create agent_bridge with custom improvement logic"""
     
-    def __init__(self, improvement_logic):
+    def __init__(self, improvement_logic, agent_facts=None):
         """
         Initialize NANDA with custom improvement logic
         
         Args:
             improvement_logic: Function that takes (message_text: str) -> str
+            agent_facts: Optional dict sent to the registry alongside the
+                agent_id/agent_url/api_url. See projnanda/agentfacts for
+                the schema.
         """
         self.improvement_logic = improvement_logic
+        self.agent_facts = agent_facts
         self.bridge = None
         print(f"🤖 NANDA initialized with custom improvement logic: {improvement_logic.__name__}")
         
@@ -44,6 +48,10 @@ class NANDA:
         
         # Create agent bridge with custom logic
         self.create_agent_bridge()
+
+    def set_agent_facts(self, agent_facts):
+        """Set agent_facts to send at registration"""
+        self.agent_facts = agent_facts
     
     def register_custom_improver(self):
         """Register the custom improvement logic with agent_bridge"""
@@ -88,7 +96,7 @@ class NANDA:
         # os.environ["UI_CLIENT_URL"] = f"{api_url}/api/receive_message"
 
         if public_url:
-            register_with_registry(agent_id, public_url, api_url)
+            register_with_registry(agent_id, public_url, api_url, agent_facts=self.agent_facts)
         else:
             print("WARNING: PUBLIC_URL environment variable not set. Agent will not be registered.")
         
