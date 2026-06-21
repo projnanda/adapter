@@ -19,14 +19,21 @@ import base64
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
-# Set API key through environment variable or directly in the code
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 # Toggle for message improvement feature
 IMPROVE_MESSAGES = os.getenv("IMPROVE_MESSAGES", "true").lower() in ("true", "1", "yes", "y")
 
-# Create Anthropic client with explicit API key
-anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
+_anthropic_client = None
+
+def _get_anthropic_client():
+    global _anthropic_client
+    if _anthropic_client is None:
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set (see .env.example)")
+        _anthropic_client = Anthropic(api_key=api_key)
+    return _anthropic_client
 
 # Get agent configuration from environment variables
 def get_agent_id():
@@ -58,7 +65,7 @@ IMPROVE_MESSAGE_PROMPTS = {
     "default": "Improve the following message to make it more clear, compelling, and professional without changing the core content or adding fictional information. Keep the same overall meaning but enhance the phrasing and structure. Don't make it too verbose - keep it concise but impactful. Return only the improved message without explanations or introductions."
 }
 
-SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"
+SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY")
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
@@ -169,7 +176,7 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        resp = anthropic.messages.create(
+        resp = _get_anthropic_client().messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=512,
             messages=[{"role":"user","content":full_prompt}],
@@ -201,7 +208,7 @@ def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional
         
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        resp = anthropic.messages.create(
+        resp = _get_anthropic_client().messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=512,
             messages=[{"role":"user","content":full_prompt}],
@@ -409,10 +416,9 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
     """
     try:
         if registry_name == "smithery":
-            print("🔑 Using SMITHERY_API_KEY: ", SMITHERY_API_KEY)
             smithery_api_key = SMITHERY_API_KEY
             if not smithery_api_key:
-                print("❌ SMITHERY_API_KEY not found in environment.")
+                print("SMITHERY_API_KEY not set")
                 return None
             config_b64 = base64.b64encode(json.dumps(config).encode())            
             mcp_server_url = f"{url}?api_key={smithery_api_key}&config={config_b64}"
