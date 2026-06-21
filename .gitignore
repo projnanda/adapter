@@ -1,13 +1,18 @@
 .env
+.venv/
+venv/
 jinoos/
 .DS_Store
+__pycache__/
+*.pyc
+nanda_adapter/__pycache__/
+nanda_adapter/core/__pycache__/
 agents/__pycache__/
-conversation_logs/
 agents/test.py
-nanda_agent/__pycache__
+conversation_logs/
+logs_*/
 
 # Build artifacts
 dist/
+build/
 *.egg-info/
-
-nanda_adapter/core/__pycache__

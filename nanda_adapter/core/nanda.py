@@ -68,7 +68,6 @@ class NANDA:
         api_url = os.getenv("API_URL")
         agent_id = os.getenv("AGENT_ID")
 
-        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
         AGENT_ID = os.getenv("AGENT_ID", "default")  # Default to 'default' if not specified
         PORT = int(os.getenv("PORT", "6000"))
         TERMINAL_PORT = int(os.getenv("TERMINAL_PORT", "6010"))

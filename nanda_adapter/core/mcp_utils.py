@@ -38,8 +38,10 @@ class MCPClient:
     def __init__(self):
         self.session = None
         self.exit_stack = AsyncExitStack()
-        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your-key"
-        self.anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set (see .env.example)")
+        self.anthropic = Anthropic(api_key=api_key)
 
     async def connect_to_mcp_and_get_tools(self, mcp_server_url, transport_type="http"):
         """Connect to MCP server and return available tools

@@ -48,9 +48,13 @@ pip install nanda-adapter
 
 ### 4. Set Your enviroment variables ANTHROPIC_API_KEY (For running your personal hosted agents, need API key and your own domain)
 
-> export ANTHROPIC_API_KEY="your-api-key-here
+Copy `.env.example` to `.env` and fill it in, or export the variables directly:
 
-> export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>
+> export ANTHROPIC_API_KEY="your-api-key-here"
+
+> export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>"
+
+If you use the Smithery MCP registry, set `SMITHERY_API_KEY` too.
 
 ### 5. Run an example agent (langchain_pirate.py)
 > nohup python3 langchain_pirate.py > out.log 2>&1 &
