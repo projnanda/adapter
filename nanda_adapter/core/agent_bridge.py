@@ -15,6 +15,7 @@ from python_a2a import (
 import asyncio
 from mcp_utils import MCPClient
 import base64
+import attestation
 
 import sys
 sys.stdout.reconfigure(line_buffering=True)
@@ -89,6 +90,9 @@ def register_with_registry(agent_id, agent_url, api_url):
             "agent_url": agent_url,
             "api_url": api_url
         }
+        proof = attestation.attest_registration(agent_id, agent_url)
+        if proof:
+            data["proof"] = proof
         print(f"Registering agent {agent_id} with URL {agent_url} at registry {registry_url}...")
         response = requests.post(f"{registry_url}/register", json=data)
         if response.status_code == 200:
@@ -109,6 +113,10 @@ def lookup_agent(agent_id):
         response = requests.get(f"{registry_url}/lookup/{agent_id}")
         if response.status_code == 200:
             agent_url = response.json().get("agent_url")
+            proof = response.json().get("proof")
+            if not attestation.verify_registration(agent_id, agent_url, proof):
+                print(f"WARNING: Attestix proof for agent {agent_id} failed verification - refusing URL")
+                return None
             print(f"Found agent {agent_id} at URL: {agent_url}")
             return agent_url
         print(f"Agent {agent_id} not found in registry")
