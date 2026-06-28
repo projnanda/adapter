@@ -93,7 +93,6 @@ def register_with_registry(agent_id, agent_url, api_url):
         proof = attestation.attest_registration(agent_id, agent_url)
         if proof:
             data["proof"] = proof
-            print(f"Attestix: attached registration proof (issuer {proof['issuer'][:24]}...)")
         print(f"Registering agent {agent_id} with URL {agent_url} at registry {registry_url}...")
         response = requests.post(f"{registry_url}/register", json=data)
         if response.status_code == 200:
