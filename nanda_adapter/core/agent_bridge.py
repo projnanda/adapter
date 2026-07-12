@@ -19,6 +19,11 @@ import base64
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
+try:
+    from .agentfacts import build_registration_payload, load_agent_facts_from_env
+except ImportError:
+    from agentfacts import build_registration_payload, load_agent_facts_from_env
+
 # Set API key through environment variable or directly in the code
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
 
@@ -76,7 +81,7 @@ def get_registry_url():
     print(f"Using default registry URL: {default_url}")
     return default_url
 
-def register_with_registry(agent_id, agent_url, api_url):
+def register_with_registry(agent_id, agent_url, api_url, agent_facts=None):
     """Register this agent with the registry"""
     registry_url = get_registry_url()
     try:
@@ -84,11 +89,10 @@ def register_with_registry(agent_id, agent_url, api_url):
         if not agent_url.endswith('/a2a'):
             agent_url = f"{agent_url}"
 
-        data = {
-            "agent_id": agent_id,
-            "agent_url": agent_url,
-            "api_url": api_url
-        }
+        if agent_facts is None:
+            agent_facts = load_agent_facts_from_env()
+
+        data = build_registration_payload(agent_id, agent_url, api_url, agent_facts)
         print(f"Registering agent {agent_id} with URL {agent_url} at registry {registry_url}...")
         response = requests.post(f"{registry_url}/register", json=data)
         if response.status_code == 200:

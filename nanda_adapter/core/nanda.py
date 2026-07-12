@@ -18,24 +18,28 @@ import threading
 try:
     from .agent_bridge import *
     from . import run_ui_agent_https
+    from .agentfacts import load_agent_facts_from_env, normalize_agent_facts
 except ImportError:
     # If running from parent directory, add current directory to path
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, current_dir)
     from agent_bridge import *
     import run_ui_agent_https
+    from agentfacts import load_agent_facts_from_env, normalize_agent_facts
 
 class NANDA:
     """NANDA class to create agent_bridge with custom improvement logic"""
     
-    def __init__(self, improvement_logic):
+    def __init__(self, improvement_logic, agent_facts=None):
         """
         Initialize NANDA with custom improvement logic
         
         Args:
             improvement_logic: Function that takes (message_text: str) -> str
+            agent_facts: Optional AgentFacts metadata to publish at registration
         """
         self.improvement_logic = improvement_logic
+        self.agent_facts = normalize_agent_facts(agent_facts)
         self.bridge = None
         print(f"🤖 NANDA initialized with custom improvement logic: {improvement_logic.__name__}")
         
@@ -58,6 +62,10 @@ class NANDA:
         # Set custom improver as active (replaces improve_message_direct)
         self.bridge.set_message_improver("nanda_custom")
         print(f"✅ AgentBridge created with custom improve_message_direct: {self.improvement_logic.__name__}")
+
+    def set_agent_facts(self, agent_facts):
+        """Set AgentFacts metadata before registering the agent."""
+        self.agent_facts = normalize_agent_facts(agent_facts)
     
     def start_server(self):
         """Start the agent_bridge server with custom improvement logic"""
@@ -87,8 +95,12 @@ class NANDA:
         # os.environ["UI_MODE"] = "true"
         # os.environ["UI_CLIENT_URL"] = f"{api_url}/api/receive_message"
 
+        agent_facts = self.agent_facts
+        if agent_facts is None:
+            agent_facts = load_agent_facts_from_env()
+
         if public_url:
-            register_with_registry(agent_id, public_url, api_url)
+            register_with_registry(agent_id, public_url, api_url, agent_facts=agent_facts)
         else:
             print("WARNING: PUBLIC_URL environment variable not set. Agent will not be registered.")
         
