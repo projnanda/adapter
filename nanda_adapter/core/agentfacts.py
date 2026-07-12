@@ -50,8 +50,8 @@ def normalize_agent_facts(agent_facts: Optional[Mapping[str, Any]]) -> Optional[
         )
 
     try:
-        json.dumps(normalized)
-    except TypeError as exc:
+        json.dumps(normalized, allow_nan=False)
+    except (TypeError, ValueError) as exc:
         raise AgentFactsError("agent_facts must be JSON serializable") from exc
 
     return normalized
@@ -63,7 +63,9 @@ def load_agent_facts(path: Union[str, os.PathLike]) -> dict:
     facts_path = Path(path)
     with facts_path.open("r", encoding="utf-8") as handle:
         loaded = json.load(handle)
-    return normalize_agent_facts(loaded) or {}
+    if loaded is None:
+        raise AgentFactsError("agent_facts file must contain a JSON object")
+    return normalize_agent_facts(loaded)
 
 
 def load_agent_facts_from_env() -> Optional[dict]:

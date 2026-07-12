@@ -18,14 +18,14 @@ import threading
 try:
     from .agent_bridge import *
     from . import run_ui_agent_https
-    from .agentfacts import load_agent_facts_from_env, normalize_agent_facts
+    from .agentfacts import normalize_agent_facts
 except ImportError:
     # If running from parent directory, add current directory to path
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, current_dir)
     from agent_bridge import *
     import run_ui_agent_https
-    from agentfacts import load_agent_facts_from_env, normalize_agent_facts
+    from agentfacts import normalize_agent_facts
 
 class NANDA:
     """NANDA class to create agent_bridge with custom improvement logic"""
@@ -95,12 +95,10 @@ class NANDA:
         # os.environ["UI_MODE"] = "true"
         # os.environ["UI_CLIENT_URL"] = f"{api_url}/api/receive_message"
 
-        agent_facts = self.agent_facts
-        if agent_facts is None:
-            agent_facts = load_agent_facts_from_env()
-
         if public_url:
-            register_with_registry(agent_id, public_url, api_url, agent_facts=agent_facts)
+            register_with_registry(
+                agent_id, public_url, api_url, agent_facts=self.agent_facts
+            )
         else:
             print("WARNING: PUBLIC_URL environment variable not set. Agent will not be registered.")
         
