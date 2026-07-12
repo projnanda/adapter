@@ -110,6 +110,39 @@ if __name__ == "__main__":
     main()
 ```
 
+### Register AgentFacts and NANDini Data Facts
+
+Pass AgentFacts metadata when you create the adapter, or set
+`AGENT_FACTS_PATH` to a JSON file. The adapter includes the metadata in the
+registry payload under `agent_facts`. For NANDini data exchange, include
+`data_facts_url` so registries and callers can discover the dataset metadata
+associated with the agent.
+
+```python
+from nanda_adapter import NANDA
+
+def improve(message_text: str) -> str:
+    return message_text
+
+nanda = NANDA(
+    improve,
+    agent_facts={
+        "id": "weather-agent",
+        "agent_name": "urn:agent:example:weather",
+        "label": "Weather Agent",
+        "data_facts_url": "https://agents.example.com/.well-known/data-facts.json",
+        "skills": [
+            {
+                "id": "weather",
+                "description": "Returns weather observations",
+                "inputModes": ["text"],
+                "outputModes": ["json"],
+            }
+        ],
+    },
+)
+```
+
 ### Deploy a LangChain Agent
 
 ```python
